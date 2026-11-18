@@ -1,202 +1,130 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Building2,
-  Search,
-  RefreshCw,
-  Globe,
-  Phone,
-  Users
-} from 'lucide-react';
+import { Building2, Search, RefreshCw, Globe, Phone, Users, AlertCircle } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
+import { useSalesforce } from '../hooks/useSalesforce';
+import { TableRowSkeleton } from '../components/ui/LoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 export default function Accounts() {
+  const navigate = useNavigate();
+  const { connected, loading: connLoading } = useSalesforce();
   const { accounts, loading, error, fetchAccounts } = useAccounts();
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    if (fetchAccounts) fetchAccounts();
-  }, [fetchAccounts]);
+  useEffect(() => { if (fetchAccounts) fetchAccounts(); }, [fetchAccounts]);
 
-  const filteredAccounts = (accounts || []).filter((account) =>
-    [
-      account.Name,
-      account.Industry,
-      account.Type,
-      account.BillingCity
-    ].some(value =>
-      (value || '').toLowerCase().includes(search.toLowerCase())
+  const filtered = (accounts || []).filter(a =>
+    [a.Name, a.Industry, a.Type, a.BillingCity].some(v =>
+      (v || '').toLowerCase().includes(search.toLowerCase())
     )
   );
+
+  const industries = new Set((accounts || []).map(a => a.Industry).filter(Boolean)).size;
 
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ── Header ── */}
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy">Accounts</h1>
-          <p className="text-sm text-brand-secondary mt-1">
-            Manage your Salesforce business accounts.
-          </p>
+          <h1>Accounts</h1>
+          <p className="text-sm text-brand-secondary mt-1">Manage your Salesforce business accounts.</p>
         </div>
-
-        <button
-          onClick={() => fetchAccounts && fetchAccounts()}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-blue text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+        <button onClick={() => fetchAccounts && fetchAccounts()} disabled={loading} className="btn-secondary">
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           Refresh
         </button>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white border border-brand-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-50 text-brand-blue rounded-xl">
-              <Building2 size={22} />
-            </div>
-            <div>
-              <p className="text-sm text-brand-secondary">Total Accounts</p>
-              <h2 className="text-2xl font-bold text-brand-navy">
-                {accounts?.length || 0}
-              </h2>
-            </div>
-          </div>
+      {!connLoading && !connected && (
+        <div className="alert-warning flex items-center justify-between flex-wrap gap-3">
+          <span>Connect Salesforce to load account records.</span>
+          <button onClick={() => navigate('/salesforce-integration')} className="text-sm font-semibold underline underline-offset-2">Connect →</button>
         </div>
+      )}
 
-        <div className="bg-white border border-brand-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
-              <Users size={22} />
-            </div>
-            <div>
-              <p className="text-sm text-brand-secondary">Industries</p>
-              <h2 className="text-2xl font-bold text-brand-navy">
-                {new Set(accounts?.map(a => a.Industry).filter(Boolean)).size}
-              </h2>
+      {/* ── Mini stats ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          { label: 'Total Accounts', value: accounts?.length || 0, color: 'bg-blue-50 text-brand-blue',   icon: Building2 },
+          { label: 'Industries',     value: industries,            color: 'bg-purple-50 text-purple-600', icon: Users },
+        ].map(({ label, value, color, icon: Icon }) => (
+          <div key={label} className="bg-white border border-brand-border rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(3,45,96,0.06)' }}>
+            <div className="flex items-center gap-3">
+              <div className={`icon-circle ${color}`}><Icon size={20} /></div>
+              <div>
+                <p className="text-xs text-brand-secondary font-medium">{label}</p>
+                <p className="text-2xl font-bold text-brand-navy mt-0.5">{value}</p>
+              </div>
             </div>
           </div>
-        </div>
+        ))}
       </div>
 
-      {/* Accounts Table */}
-      <div className="bg-white border border-brand-border rounded-2xl shadow-sm overflow-hidden">
-
-        <div className="p-5 border-b border-brand-border flex flex-col sm:flex-row justify-between gap-4">
+      {/* ── Accounts table ── */}
+      <div className="section-card">
+        <div className="section-card-header items-center">
           <div>
             <h2 className="font-semibold text-brand-navy">All Accounts</h2>
-            <p className="text-xs text-brand-secondary mt-1">
-              Salesforce account records
-            </p>
+            <p className="text-xs text-brand-secondary mt-0.5">Salesforce account records</p>
           </div>
-
           <div className="relative w-full sm:w-72">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search accounts..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm border border-brand-border rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-brand-blue"
-            />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accounts…" className="search-input" />
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-10 text-center text-brand-secondary">
-            <RefreshCw size={24} className="animate-spin mx-auto mb-3" />
-            Loading Salesforce accounts...
-          </div>
-        ) : error ? (
-          <div className="p-10 text-center text-red-600">{error}</div>
-        ) : filteredAccounts.length === 0 ? (
-          <div className="p-12 text-center">
-            <Building2 size={35} className="mx-auto text-gray-300 mb-3" />
-            <h3 className="font-semibold text-brand-navy">No accounts found</h3>
-            <p className="text-sm text-brand-secondary mt-1">
-              {search
-                ? 'Try a different search term.'
-                : 'Connect Salesforce or check your Salesforce account records.'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-xs uppercase text-brand-secondary">
-                <tr>
-                  <th className="px-5 py-4 font-semibold">Account Name</th>
-                  <th className="px-5 py-4 font-semibold">Industry</th>
-                  <th className="px-5 py-4 font-semibold">Type</th>
-                  <th className="px-5 py-4 font-semibold">Phone</th>
-                  <th className="px-5 py-4 font-semibold">Website</th>
-                  <th className="px-5 py-4 font-semibold">Location</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-brand-border">
-                {filteredAccounts.map((account, index) => (
-                  <motion.tr
-                    key={account.Id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="hover:bg-blue-50/40 transition-colors"
-                  >
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-brand-navy">
-                        {account.Name || 'Unnamed Account'}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {account.Industry || '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {account.Type || '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {account.Phone ? (
-                        <span className="flex items-center gap-2">
-                          <Phone size={14} />
-                          {account.Phone}
-                        </span>
-                      ) : '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-brand-blue">
-                      {account.Website ? (
-                        <a
-                          href={account.Website.startsWith('http') ? account.Website : `https://${account.Website}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 hover:underline"
-                        >
-                          <Globe size={14} />
-                          Visit
-                        </a>
-                      ) : '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {account.BillingCity || '—'}
-                    </td>
-                  </motion.tr>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[700px]">
+            <thead className="table-header border-b border-brand-border">
+              <tr>
+                {['Account Name', 'Industry', 'Type', 'Phone', 'Website', 'Location'].map(h => (
+                  <th key={h} className="px-5 py-3.5 font-semibold text-[11px]">{h}</th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
+              ) : error ? (
+                <tr><td colSpan={6} className="px-5 py-10 text-center">
+                  <div className="flex flex-col items-center gap-2 text-red-600"><AlertCircle size={28} /><p className="text-sm">{error}</p></div>
+                </td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={6} className="px-5 py-14 text-center">
+                  <Building2 size={36} className="mx-auto text-gray-300 mb-3" />
+                  <p className="font-semibold text-brand-navy">No accounts found</p>
+                  <p className="text-sm text-brand-secondary mt-1">{search ? 'Try a different search term.' : 'Connect Salesforce or check your account records.'}</p>
+                </td></tr>
+              ) : filtered.map((a, i) => (
+                <motion.tr key={a.Id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.025 }} className="table-row">
+                  <td className="table-cell font-medium text-brand-navy">{a.Name || 'Unnamed Account'}</td>
+                  <td className="table-cell text-brand-secondary">{a.Industry || '—'}</td>
+                  <td className="table-cell text-brand-secondary">{a.Type || '—'}</td>
+                  <td className="table-cell text-brand-secondary">
+                    {a.Phone ? <span className="flex items-center gap-1.5"><Phone size={13} />{a.Phone}</span> : '—'}
+                  </td>
+                  <td className="table-cell">
+                    {a.Website ? (
+                      <a href={a.Website.startsWith('http') ? a.Website : `https://${a.Website}`}
+                        target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-brand-blue hover:underline text-sm"
+                      >
+                        <Globe size={13} />Visit
+                      </a>
+                    ) : '—'}
+                  </td>
+                  <td className="table-cell text-brand-secondary">{a.BillingCity || '—'}</td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="px-5 py-4 border-t border-brand-border text-xs text-brand-secondary">
-          Showing {filteredAccounts.length} of {accounts?.length || 0} accounts
+        <div className="px-5 py-3 border-t border-brand-border text-xs text-brand-secondary bg-gray-50/50">
+          Showing <strong>{filtered.length}</strong> of <strong>{accounts?.length || 0}</strong> accounts
         </div>
       </div>
     </div>

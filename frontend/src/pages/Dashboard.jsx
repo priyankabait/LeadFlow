@@ -1,63 +1,52 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Users,
-  Building2,
-  UserCircle,
-  TrendingUp,
-  DollarSign,
-  RefreshCw,
-  UserPlus,
-  PlusCircle,
-  BarChart3,
-  AlertCircle
+  Users, Building2, UserCircle, TrendingUp, DollarSign,
+  RefreshCw, BarChart3, AlertCircle, ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useState } from 'react';
 
 import { dashboardService } from '../services/dashboardService';
 import StatCard from '../components/ui/StatCard';
-import LoadingSkeleton from '../components/ui/LoadingSkeleton';
+import { StatCardSkeleton } from '../components/ui/LoadingSkeleton';
 import { useSalesforce } from '../hooks/useSalesforce';
+
+const QUICK_ACTIONS = [
+  { title: 'Leads',         description: 'View and manage Salesforce leads.',       icon: Users,      to: '/leads',          color: 'blue' },
+  { title: 'Accounts',      description: 'Explore your business accounts.',          icon: Building2,  to: '/accounts',       color: 'purple' },
+  { title: 'Opportunities', description: 'Track your active sales pipeline.',        icon: TrendingUp, to: '/opportunities',   color: 'green' },
+  { title: 'Analytics',     description: 'Deep-dive into CRM performance data.',     icon: BarChart3,  to: '/analytics',      color: 'orange' },
+];
+
+const ACTION_COLOR = {
+  blue:   { bg: 'bg-blue-50',   text: 'text-brand-blue',   hover: 'group-hover:bg-brand-blue group-hover:text-white' },
+  purple: { bg: 'bg-purple-50', text: 'text-purple-600',   hover: 'group-hover:bg-purple-600 group-hover:text-white' },
+  green:  { bg: 'bg-green-50',  text: 'text-green-600',    hover: 'group-hover:bg-green-600  group-hover:text-white' },
+  orange: { bg: 'bg-orange-50', text: 'text-orange-600',   hover: 'group-hover:bg-orange-600 group-hover:text-white' },
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { connected, loading: connectionLoading } = useSalesforce();
 
-  const {
-    connected,
-    loading: connectionLoading
-  } = useSalesforce();
-
-  const [stats, setStats] = useState(null);
+  const [stats, setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError]   = useState('');
 
   const fetchStats = useCallback(async () => {
-    if (!connected) {
-      setLoading(false);
-      return;
-    }
-
+    if (!connected) { setLoading(false); return; }
     setLoading(true);
     setError('');
-
     try {
       const response = await dashboardService.getStats();
       const data = response.data?.data;
-
-      if (!data) {
-        throw new Error('Dashboard data was not returned.');
-      }
-
+      if (!data) throw new Error('Dashboard data was not returned.');
       setStats(data);
     } catch (err) {
       setStats(null);
-      setError(
-        err.response?.data?.error ||
-        err.message ||
-        'Unable to load dashboard statistics.'
-      );
+      setError(err.response?.data?.error || err.message || 'Unable to load dashboard statistics.');
     } finally {
       setLoading(false);
     }
@@ -65,205 +54,128 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (connectionLoading) return;
-
-    if (connected) {
-      fetchStats();
-    } else {
-      setStats(null);
-      setLoading(false);
-    }
+    if (connected) { fetchStats(); } else { setStats(null); setLoading(false); }
   }, [connected, connectionLoading, fetchStats]);
 
-  const cards = [
-    {
-      title: 'Total Leads',
-      value: stats?.totalLeads ?? 0,
-      icon: Users,
-      color: 'blue'
-    },
-    {
-      title: 'Total Accounts',
-      value: stats?.totalAccounts ?? 0,
-      icon: Building2,
-      color: 'purple'
-    },
-    {
-      title: 'Total Contacts',
-      value: stats?.totalContacts ?? 0,
-      icon: UserCircle,
-      color: 'green'
-    },
-    {
-      title: 'Open Opportunities',
-      value: stats?.openOpportunities ?? 0,
-      icon: TrendingUp,
-      color: 'orange'
-    },
-    {
-      title: 'Pipeline Value',
-      value: stats?.pipelineValue ?? 0,
-      icon: DollarSign,
-      color: 'indigo',
-      format: 'currency'
-    }
+  const STAT_CARDS = [
+    { title: 'Total Leads',         value: stats?.totalLeads         ?? 0, icon: Users,      color: 'blue'   },
+    { title: 'Total Accounts',      value: stats?.totalAccounts      ?? 0, icon: Building2,  color: 'purple' },
+    { title: 'Total Contacts',      value: stats?.totalContacts      ?? 0, icon: UserCircle, color: 'green'  },
+    { title: 'Open Opportunities',  value: stats?.openOpportunities  ?? 0, icon: TrendingUp, color: 'orange' },
+    { title: 'Pipeline Value',      value: stats?.pipelineValue      ?? 0, icon: DollarSign, color: 'indigo', format: 'currency' },
   ];
 
-  const quickActions = [
-    {
-      title: 'View Leads',
-      description: 'Manage your Salesforce leads.',
-      icon: Users,
-      action: () => navigate('/leads')
-    },
-    {
-      title: 'View Accounts',
-      description: 'Explore your business accounts.',
-      icon: Building2,
-      action: () => navigate('/accounts')
-    },
-    {
-      title: 'Opportunities',
-      description: 'Track your active sales deals.',
-      icon: TrendingUp,
-      action: () => navigate('/opportunities')
-    },
-    {
-      title: 'Analytics',
-      description: 'Explore detailed CRM insights.',
-      icon: BarChart3,
-      action: () => navigate('/analytics')
-    }
-  ];
+  const isBusy = loading || connectionLoading;
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
 
+      {/* ── Page header ──────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-brand-secondary">
-            Welcome to LeadFlow
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary">
+            LeadFlow CRM
           </p>
-          <h1 className="text-2xl font-bold text-brand-navy mt-1">
+          <h1 className="text-2xl font-bold text-brand-navy mt-1 leading-tight">
             Overview
           </h1>
           <p className="text-sm text-brand-secondary mt-1">
-            Your CRM workspace at a glance.
+            Your Salesforce CRM workspace at a glance.
           </p>
         </div>
 
         <button
           type="button"
           onClick={fetchStats}
-          disabled={!connected || loading || connectionLoading}
-          className="inline-flex items-center gap-2 rounded-xl border border-brand-border bg-white px-4 py-2.5 text-sm font-medium text-brand-text hover:bg-gray-50 disabled:opacity-50"
+          disabled={!connected || isBusy}
+          className="btn-secondary"
         >
-          <RefreshCw
-            size={16}
-            className={loading ? 'animate-spin' : ''}
-          />
+          <RefreshCw size={15} className={isBusy ? 'animate-spin' : ''} />
           Refresh
         </button>
       </div>
 
+      {/* ── Banners ──────────────────────────────────────────── */}
       {!connectionLoading && !connected && (
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-          Salesforce is not connected. Connect your account to view live CRM data.
+        <div className="alert-warning flex items-center justify-between flex-wrap gap-3">
+          <span>Salesforce is not connected. Connect your account to view live CRM data.</span>
           <button
             type="button"
             onClick={() => navigate('/salesforce-integration')}
-            className="ml-2 underline font-semibold"
+            className="text-sm font-semibold underline underline-offset-2"
           >
-            Connect Salesforce
+            Connect Salesforce →
           </button>
         </div>
       )}
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <AlertCircle size={18} />
+        <div className="alert-error">
+          <AlertCircle size={18} className="shrink-0" />
           {error}
         </div>
       )}
 
+      {/* ── CRM Summary cards ────────────────────────────────── */}
       <section>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-semibold text-brand-navy">
-              CRM Summary
-            </h2>
-            <p className="text-xs text-brand-secondary mt-1">
-              Live totals from your Salesforce account.
-            </p>
+            <h2 className="font-semibold text-brand-navy">CRM Summary</h2>
+            <p className="text-xs text-brand-secondary mt-0.5">Live totals from your Salesforce account.</p>
           </div>
           {connected && (
-            <span className="text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-full">
-              Live CRM data
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              Live data
             </span>
           )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          {cards.map((card, index) => (
-            <motion.div
-              key={card.title}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.06 }}
-            >
-              {loading || connectionLoading ? (
-                <LoadingSkeleton />
-              ) : (
-                <StatCard
-                  title={card.title}
-                  value={card.value}
-                  icon={card.icon}
-                  color={card.color}
-                  format={card.format || 'number'}
-                />
-              )}
-            </motion.div>
-          ))}
+          {STAT_CARDS.map((card, i) =>
+            isBusy ? (
+              <motion.div key={card.title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
+                <StatCardSkeleton />
+              </motion.div>
+            ) : (
+              <motion.div key={card.title} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
+                <StatCard title={card.title} value={card.value} icon={card.icon} color={card.color} format={card.format} />
+              </motion.div>
+            )
+          )}
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="font-semibold text-brand-navy">
-            Quick Access
-          </h2>
-          <p className="text-xs text-brand-secondary mt-1">
-            Navigate directly to the CRM sections you use most.
-          </p>
+      {/* ── Quick Access ─────────────────────────────────────── */}
+      <section>
+        <div className="mb-4">
+          <h2 className="font-semibold text-brand-navy">Quick Access</h2>
+          <p className="text-xs text-brand-secondary mt-0.5">Jump directly to the CRM sections you use most.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {quickActions.map((item, index) => {
+          {QUICK_ACTIONS.map((item, i) => {
             const Icon = item.icon;
-
+            const c = ACTION_COLOR[item.color];
             return (
               <motion.button
                 type="button"
                 key={item.title}
-                onClick={item.action}
+                onClick={() => navigate(item.to)}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="text-left bg-white border border-brand-border rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition group"
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ y: -2 }}
+                className="text-left bg-white border border-brand-border rounded-2xl p-5 group transition-all duration-200 hover:border-blue-200"
+                style={{ boxShadow: '0 1px 3px rgba(3,45,96,0.06)' }}
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center mb-4 group-hover:bg-brand-blue group-hover:text-white transition">
+                <div className={`icon-circle ${c.bg} ${c.text} mb-4 transition-all duration-200 ${c.hover}`}>
                   <Icon size={20} />
                 </div>
-
-                <h3 className="font-semibold text-brand-navy">
-                  {item.title}
-                </h3>
-
-                <p className="text-xs text-brand-secondary mt-2">
-                  {item.description}
-                </p>
-
-                <span className="text-xs text-brand-blue font-medium inline-block mt-4">
-                  Open section →
+                <h3 className="font-semibold text-brand-navy">{item.title}</h3>
+                <p className="text-xs text-brand-secondary mt-1.5 leading-relaxed">{item.description}</p>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-blue mt-4 group-hover:gap-2 transition-all duration-150">
+                  Open section <ArrowRight size={12} />
                 </span>
               </motion.button>
             );
@@ -271,29 +183,29 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="bg-white border border-brand-border rounded-2xl p-5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center">
-            <BarChart3 size={20} />
-          </div>
-
-          <div className="flex-1">
-            <h3 className="font-semibold text-brand-navy">
-              Want to explore your CRM performance?
-            </h3>
-            <p className="text-xs text-brand-secondary mt-1">
-              Visit Analytics for lead distribution, sales stages and pipeline insights.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate('/analytics')}
-            className="text-sm font-semibold text-brand-blue hover:underline"
-          >
-            View Analytics →
-          </button>
+      {/* ── Analytics CTA ────────────────────────────────────── */}
+      <section
+        className="rounded-2xl border border-brand-border bg-white p-5 flex items-center gap-4"
+        style={{ boxShadow: '0 1px 3px rgba(3,45,96,0.06)' }}
+      >
+        <div className="icon-circle bg-brand-blue text-white shrink-0"
+          style={{ background: 'linear-gradient(135deg,#032D60,#0176D3)' }}
+        >
+          <BarChart3 size={20} />
         </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-brand-navy text-sm">Explore CRM Performance</h3>
+          <p className="text-xs text-brand-secondary mt-0.5">
+            Visit Analytics for lead distribution, sales stages and pipeline insights.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/analytics')}
+          className="btn-primary shrink-0 text-xs"
+        >
+          View Analytics <ArrowRight size={13} />
+        </button>
       </section>
 
     </div>

@@ -1,187 +1,128 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Contact,
-  Search,
-  RefreshCw,
-  Mail,
-  Phone,
-  Building2
-} from 'lucide-react';
+import { UserCircle, Search, RefreshCw, Mail, Phone, Building2, AlertCircle } from 'lucide-react';
 import { useContacts } from '../hooks/useContacts';
+import { useSalesforce } from '../hooks/useSalesforce';
+import { TableRowSkeleton } from '../components/ui/LoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 export default function Contacts() {
+  const navigate = useNavigate();
+  const { connected, loading: connLoading } = useSalesforce();
   const { contacts, loading, error, fetchContacts } = useContacts();
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    if (fetchContacts) fetchContacts();
-  }, [fetchContacts]);
+  useEffect(() => { if (fetchContacts) fetchContacts(); }, [fetchContacts]);
 
-  const filteredContacts = (contacts || []).filter((contact) => {
-    const fullName = `${contact.FirstName || ''} ${contact.LastName || ''}`;
-
+  const filtered = (contacts || []).filter(c => {
+    const q = search.toLowerCase();
     return (
-      fullName.toLowerCase().includes(search.toLowerCase()) ||
-      (contact.Email || '').toLowerCase().includes(search.toLowerCase()) ||
-      (contact.Account?.Name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (contact.Title || '').toLowerCase().includes(search.toLowerCase())
+      `${c.FirstName || ''} ${c.LastName || ''}`.toLowerCase().includes(q) ||
+      (c.Email || '').toLowerCase().includes(q) ||
+      (c.Account?.Name || '').toLowerCase().includes(q) ||
+      (c.Title || '').toLowerCase().includes(q)
     );
   });
 
+  const linkedAccounts = new Set((contacts || []).map(c => c.AccountId).filter(Boolean)).size;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-brand-navy">Contacts</h1>
-          <p className="text-sm text-brand-secondary mt-1">
-            Manage your customer and business contacts.
-          </p>
-        </div>
 
-        <button
-          onClick={() => fetchContacts && fetchContacts()}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-blue text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+      {/* ── Header ── */}
+      <div className="page-header">
+        <div>
+          <h1>Contacts</h1>
+          <p className="text-sm text-brand-secondary mt-1">Manage your customer and business contacts.</p>
+        </div>
+        <button onClick={() => fetchContacts && fetchContacts()} disabled={loading} className="btn-secondary">
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           Refresh
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white border border-brand-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-50 text-brand-blue rounded-xl">
-              <Contact size={22} />
-            </div>
-            <div>
-              <p className="text-sm text-brand-secondary">Total Contacts</p>
-              <h2 className="text-2xl font-bold text-brand-navy">
-                {contacts?.length || 0}
-              </h2>
-            </div>
-          </div>
+      {!connLoading && !connected && (
+        <div className="alert-warning flex items-center justify-between flex-wrap gap-3">
+          <span>Connect Salesforce to load contact records.</span>
+          <button onClick={() => navigate('/salesforce-integration')} className="text-sm font-semibold underline underline-offset-2">Connect →</button>
         </div>
+      )}
 
-        <div className="bg-white border border-brand-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
-              <Building2 size={22} />
-            </div>
-            <div>
-              <p className="text-sm text-brand-secondary">Linked Accounts</p>
-              <h2 className="text-2xl font-bold text-brand-navy">
-                {new Set(contacts?.map(c => c.AccountId).filter(Boolean)).size}
-              </h2>
+      {/* ── Mini stats ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          { label: 'Total Contacts', value: contacts?.length || 0, color: 'bg-blue-50 text-brand-blue',   icon: UserCircle },
+          { label: 'Linked Accounts', value: linkedAccounts,        color: 'bg-purple-50 text-purple-600', icon: Building2 },
+        ].map(({ label, value, color, icon: Icon }) => (
+          <div key={label} className="bg-white border border-brand-border rounded-2xl p-5" style={{ boxShadow: '0 1px 3px rgba(3,45,96,0.06)' }}>
+            <div className="flex items-center gap-3">
+              <div className={`icon-circle ${color}`}><Icon size={20} /></div>
+              <div>
+                <p className="text-xs text-brand-secondary font-medium">{label}</p>
+                <p className="text-2xl font-bold text-brand-navy mt-0.5">{value}</p>
+              </div>
             </div>
           </div>
-        </div>
+        ))}
       </div>
 
-      <div className="bg-white border border-brand-border rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-brand-border flex flex-col sm:flex-row justify-between gap-4">
+      {/* ── Contacts table ── */}
+      <div className="section-card">
+        <div className="section-card-header items-center">
           <div>
             <h2 className="font-semibold text-brand-navy">All Contacts</h2>
-            <p className="text-xs text-brand-secondary mt-1">
-              Salesforce contact records
-            </p>
+            <p className="text-xs text-brand-secondary mt-0.5">Salesforce contact records</p>
           </div>
-
           <div className="relative w-full sm:w-72">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search contacts..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm border border-brand-border rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-brand-blue"
-            />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…" className="search-input" />
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-10 text-center text-brand-secondary">
-            <RefreshCw size={24} className="animate-spin mx-auto mb-3" />
-            Loading Salesforce contacts...
-          </div>
-        ) : error ? (
-          <div className="p-10 text-center text-red-600">{error}</div>
-        ) : filteredContacts.length === 0 ? (
-          <div className="p-12 text-center">
-            <Contact size={35} className="mx-auto text-gray-300 mb-3" />
-            <h3 className="font-semibold text-brand-navy">No contacts found</h3>
-            <p className="text-sm text-brand-secondary mt-1">
-              {search
-                ? 'Try a different search term.'
-                : 'Connect Salesforce or check your Salesforce contact records.'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-xs uppercase text-brand-secondary">
-                <tr>
-                  <th className="px-5 py-4 font-semibold">Contact Name</th>
-                  <th className="px-5 py-4 font-semibold">Account</th>
-                  <th className="px-5 py-4 font-semibold">Title</th>
-                  <th className="px-5 py-4 font-semibold">Email</th>
-                  <th className="px-5 py-4 font-semibold">Phone</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-brand-border">
-                {filteredContacts.map((contact, index) => (
-                  <motion.tr
-                    key={contact.Id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="hover:bg-blue-50/40 transition-colors"
-                  >
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-brand-navy">
-                        {`${contact.FirstName || ''} ${contact.LastName || ''}`.trim() || 'Unnamed'}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {contact.Account?.Name || '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {contact.Title || '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {contact.Email ? (
-                        <span className="flex items-center gap-2">
-                          <Mail size={14} />
-                          {contact.Email}
-                        </span>
-                      ) : '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {contact.Phone ? (
-                        <span className="flex items-center gap-2">
-                          <Phone size={14} />
-                          {contact.Phone}
-                        </span>
-                      ) : '—'}
-                    </td>
-                  </motion.tr>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[640px]">
+            <thead className="table-header border-b border-brand-border">
+              <tr>
+                {['Contact Name', 'Account', 'Title', 'Email', 'Phone'].map(h => (
+                  <th key={h} className="px-5 py-3.5 font-semibold text-[11px]">{h}</th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)
+              ) : error ? (
+                <tr><td colSpan={5} className="px-5 py-10 text-center">
+                  <div className="flex flex-col items-center gap-2 text-red-600"><AlertCircle size={28} /><p className="text-sm">{error}</p></div>
+                </td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={5} className="px-5 py-14 text-center">
+                  <UserCircle size={36} className="mx-auto text-gray-300 mb-3" />
+                  <p className="font-semibold text-brand-navy">No contacts found</p>
+                  <p className="text-sm text-brand-secondary mt-1">{search ? 'Try a different search term.' : 'Connect Salesforce or check your contact records.'}</p>
+                </td></tr>
+              ) : filtered.map((c, i) => (
+                <motion.tr key={c.Id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.025 }} className="table-row">
+                  <td className="table-cell font-medium text-brand-navy">
+                    {`${c.FirstName || ''} ${c.LastName || ''}`.trim() || 'Unnamed'}
+                  </td>
+                  <td className="table-cell text-brand-secondary">{c.Account?.Name || '—'}</td>
+                  <td className="table-cell text-brand-secondary">{c.Title || '—'}</td>
+                  <td className="table-cell text-brand-secondary">
+                    {c.Email ? <span className="flex items-center gap-1.5"><Mail size={13} />{c.Email}</span> : '—'}
+                  </td>
+                  <td className="table-cell text-brand-secondary">
+                    {c.Phone ? <span className="flex items-center gap-1.5"><Phone size={13} />{c.Phone}</span> : '—'}
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="px-5 py-4 border-t border-brand-border text-xs text-brand-secondary">
-          Showing {filteredContacts.length} of {contacts?.length || 0} contacts
+        <div className="px-5 py-3 border-t border-brand-border text-xs text-brand-secondary bg-gray-50/50">
+          Showing <strong>{filtered.length}</strong> of <strong>{contacts?.length || 0}</strong> contacts
         </div>
       </div>
     </div>

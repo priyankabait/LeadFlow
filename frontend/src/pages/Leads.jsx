@@ -1,232 +1,173 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Users,
-  Search,
-  RefreshCw,
-  Plus,
-  Mail,
-  Phone,
-  Building2
-} from 'lucide-react';
+import { Users, Search, RefreshCw, Mail, Phone, Building2, AlertCircle } from 'lucide-react';
 import { useLeads } from '../hooks/useLeads';
+import { useSalesforce } from '../hooks/useSalesforce';
+import { TableRowSkeleton } from '../components/ui/LoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
+
+const STATUS_STYLES = {
+  'New':                 'badge badge-blue',
+  'Working - Contacted': 'badge badge-amber',
+  'Qualified':           'badge badge-green',
+  'Unqualified':         'badge badge-red',
+  'Nurturing':           'badge badge-purple',
+};
+
+const getStatusClass = s => STATUS_STYLES[s] || 'badge badge-gray';
+
+const MINI_STATS = leads => [
+  { label: 'Total Leads',    value: leads.length,                                           color: 'bg-blue-50   text-brand-blue',  icon: Users },
+  { label: 'Qualified',      value: leads.filter(l => l.Status === 'Qualified').length,     color: 'bg-green-50  text-green-600',   icon: Users },
+  { label: 'Companies',      value: new Set(leads.map(l => l.Company).filter(Boolean)).size, color: 'bg-purple-50 text-purple-600', icon: Building2 },
+];
 
 export default function Leads() {
+  const navigate = useNavigate();
+  const { connected, loading: connLoading } = useSalesforce();
   const { leads, loading, error, fetchLeads } = useLeads();
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    if (fetchLeads) fetchLeads();
-  }, [fetchLeads]);
+  useEffect(() => { if (fetchLeads) fetchLeads(); }, [fetchLeads]);
 
-  const filteredLeads = (leads || []).filter((lead) => {
-    const searchText = search.toLowerCase();
-
+  const filtered = (leads || []).filter(lead => {
+    const q = search.toLowerCase();
     return (
-      `${lead.FirstName || ''} ${lead.LastName || ''}`
-        .toLowerCase()
-        .includes(searchText) ||
-      (lead.Company || '').toLowerCase().includes(searchText) ||
-      (lead.Email || '').toLowerCase().includes(searchText)
+      `${lead.FirstName || ''} ${lead.LastName || ''}`.toLowerCase().includes(q) ||
+      (lead.Company || '').toLowerCase().includes(q) ||
+      (lead.Email   || '').toLowerCase().includes(q)
     );
   });
 
-  const getStatusStyle = (status) => {
-    const styles = {
-      'New': 'bg-blue-50 text-blue-700',
-      'Working - Contacted': 'bg-amber-50 text-amber-700',
-      'Qualified': 'bg-green-50 text-green-700',
-      'Unqualified': 'bg-red-50 text-red-700',
-      'Nurturing': 'bg-purple-50 text-purple-700'
-    };
-
-    return styles[status] || 'bg-gray-100 text-gray-600';
-  };
+  const miniStats = MINI_STATS(leads || []);
 
   return (
     <div className="space-y-6">
 
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ── Header ── */}
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy">
-            Leads
-          </h1>
-          <p className="text-sm text-brand-secondary mt-1">
-            Manage and track your Salesforce leads.
-          </p>
+          <h1>Leads</h1>
+          <p className="text-sm text-brand-secondary mt-1">Manage and track your Salesforce leads.</p>
         </div>
-
-        <button
-          onClick={() => fetchLeads && fetchLeads()}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-blue text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+        <button onClick={() => fetchLeads && fetchLeads()} disabled={loading} className="btn-secondary">
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           Refresh
         </button>
       </div>
 
-      {/* Lead Summary */}
+      {/* ── Not connected banner ── */}
+      {!connLoading && !connected && (
+        <div className="alert-warning flex items-center justify-between flex-wrap gap-3">
+          <span>Connect Salesforce to load lead records.</span>
+          <button onClick={() => navigate('/salesforce-integration')} className="text-sm font-semibold underline underline-offset-2">
+            Connect →
+          </button>
+        </div>
+      )}
+
+      {/* ── Mini stat cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-brand-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-50 rounded-xl text-brand-blue">
-              <Users size={21} />
-            </div>
-            <div>
-              <p className="text-sm text-brand-secondary">Total Leads</p>
-              <h2 className="text-2xl font-bold text-brand-navy">
-                {leads?.length || 0}
-              </h2>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-brand-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-50 rounded-xl text-green-600">
-              <Users size={21} />
-            </div>
-            <div>
-              <p className="text-sm text-brand-secondary">Qualified Leads</p>
-              <h2 className="text-2xl font-bold text-brand-navy">
-                {leads?.filter(lead => lead.Status === 'Qualified').length || 0}
-              </h2>
+        {miniStats.map(({ label, value, color, icon: Icon }) => (
+          <div key={label} className="bg-white border border-brand-border rounded-2xl p-5"
+            style={{ boxShadow: '0 1px 3px rgba(3,45,96,0.06)' }}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`icon-circle ${color}`}><Icon size={20} /></div>
+              <div>
+                <p className="text-xs text-brand-secondary font-medium">{label}</p>
+                <p className="text-2xl font-bold text-brand-navy mt-0.5">{value}</p>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="bg-white border border-brand-border rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
-              <Building2 size={21} />
-            </div>
-            <div>
-              <p className="text-sm text-brand-secondary">Companies</p>
-              <h2 className="text-2xl font-bold text-brand-navy">
-                {new Set(leads?.map(lead => lead.Company).filter(Boolean)).size}
-              </h2>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Leads Table */}
-      <div className="bg-white border border-brand-border rounded-2xl shadow-sm overflow-hidden">
-
-        <div className="p-5 border-b border-brand-border flex flex-col sm:flex-row justify-between gap-4">
+      {/* ── Leads table ── */}
+      <div className="section-card">
+        {/* Table toolbar */}
+        <div className="section-card-header items-center">
           <div>
             <h2 className="font-semibold text-brand-navy">All Leads</h2>
-            <p className="text-xs text-brand-secondary mt-1">
-              Salesforce lead records
-            </p>
+            <p className="text-xs text-brand-secondary mt-0.5">Salesforce lead records</p>
           </div>
-
           <div className="relative w-full sm:w-72">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search leads..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm border border-brand-border rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-brand-blue"
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search leads…"
+              className="search-input"
             />
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-10 text-center text-brand-secondary">
-            <RefreshCw size={24} className="animate-spin mx-auto mb-3" />
-            Loading Salesforce leads...
-          </div>
-        ) : error ? (
-          <div className="p-10 text-center text-red-600">
-            {error}
-          </div>
-        ) : filteredLeads.length === 0 ? (
-          <div className="p-12 text-center">
-            <Users size={35} className="mx-auto text-gray-300 mb-3" />
-            <h3 className="font-semibold text-brand-navy">
-              No leads found
-            </h3>
-            <p className="text-sm text-brand-secondary mt-1">
-              {search
-                ? 'Try a different search term.'
-                : 'Connect Salesforce or check whether your Salesforce account has lead records.'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-xs uppercase text-brand-secondary">
-                <tr>
-                  <th className="px-5 py-4 font-semibold">Lead Name</th>
-                  <th className="px-5 py-4 font-semibold">Company</th>
-                  <th className="px-5 py-4 font-semibold">Email</th>
-                  <th className="px-5 py-4 font-semibold">Phone</th>
-                  <th className="px-5 py-4 font-semibold">Status</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-brand-border">
-                {filteredLeads.map((lead, index) => (
-                  <motion.tr
-                    key={lead.Id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="hover:bg-blue-50/40 transition-colors"
-                  >
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-brand-navy">
-                        {`${lead.FirstName || ''} ${lead.LastName || ''}`.trim() || 'Unnamed'}
-                      </div>
-                      <div className="text-xs text-brand-secondary mt-1">
-                        {lead.Title || 'No title'}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {lead.Company || '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {lead.Email ? (
-                        <span className="flex items-center gap-2">
-                          <Mail size={14} />
-                          {lead.Email}
-                        </span>
-                      ) : '—'}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {lead.Phone ? (
-                        <span className="flex items-center gap-2">
-                          <Phone size={14} />
-                          {lead.Phone}
-                        </span>
-                      ) : '—'}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${getStatusStyle(lead.Status)}`}>
-                        {lead.Status || 'Unknown'}
-                      </span>
-                    </td>
-                  </motion.tr>
+        {/* Table body */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[640px]">
+            <thead className="table-header border-b border-brand-border">
+              <tr>
+                {['Lead Name', 'Company', 'Email', 'Phone', 'Status'].map(h => (
+                  <th key={h} className="px-5 py-3.5 font-semibold text-[11px]">{h}</th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)
+              ) : error ? (
+                <tr><td colSpan={5} className="px-5 py-10 text-center">
+                  <div className="flex flex-col items-center gap-2 text-red-600">
+                    <AlertCircle size={28} />
+                    <p className="text-sm">{error}</p>
+                  </div>
+                </td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={5} className="px-5 py-14 text-center">
+                  <Users size={36} className="mx-auto text-gray-300 mb-3" />
+                  <p className="font-semibold text-brand-navy">No leads found</p>
+                  <p className="text-sm text-brand-secondary mt-1">
+                    {search ? 'Try a different search term.' : 'Connect Salesforce or check whether your org has lead records.'}
+                  </p>
+                </td></tr>
+              ) : filtered.map((lead, i) => (
+                <motion.tr key={lead.Id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.025 }}
+                  className="table-row"
+                >
+                  <td className="table-cell">
+                    <p className="font-medium text-brand-navy">
+                      {`${lead.FirstName || ''} ${lead.LastName || ''}`.trim() || 'Unnamed'}
+                    </p>
+                    {lead.Title && <p className="text-xs text-brand-secondary mt-0.5">{lead.Title}</p>}
+                  </td>
+                  <td className="table-cell text-brand-secondary">{lead.Company || '—'}</td>
+                  <td className="table-cell text-brand-secondary">
+                    {lead.Email
+                      ? <span className="flex items-center gap-1.5"><Mail size={13} />{lead.Email}</span>
+                      : '—'}
+                  </td>
+                  <td className="table-cell text-brand-secondary">
+                    {lead.Phone
+                      ? <span className="flex items-center gap-1.5"><Phone size={13} />{lead.Phone}</span>
+                      : '—'}
+                  </td>
+                  <td className="table-cell">
+                    <span className={getStatusClass(lead.Status)}>{lead.Status || 'Unknown'}</span>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="px-5 py-4 border-t border-brand-border text-xs text-brand-secondary">
-          Showing {filteredLeads.length} of {leads?.length || 0} leads
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-brand-border text-xs text-brand-secondary bg-gray-50/50">
+          Showing <strong>{filtered.length}</strong> of <strong>{leads?.length || 0}</strong> leads
         </div>
       </div>
     </div>

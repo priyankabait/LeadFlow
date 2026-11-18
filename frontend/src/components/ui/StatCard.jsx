@@ -1,134 +1,61 @@
 
 import { motion, useSpring, useTransform } from 'framer-motion';
 import { useEffect } from 'react';
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus
-} from 'lucide-react';
 
 function AnimatedNumber({ value, format = 'number' }) {
-  const spring = useSpring(0, {
-    stiffness: 100,
-    damping: 20
-  });
+  const spring = useSpring(0, { stiffness: 80, damping: 18 });
 
-  const display = useTransform(spring, (current) => {
-    const number = Math.round(current);
-
+  const display = useTransform(spring, current => {
+    const n = Math.round(current);
     if (format === 'currency') {
-      return `₹${number.toLocaleString('en-IN')}`;
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency', currency: 'USD', maximumFractionDigits: 0
+      }).format(n);
     }
-
-    return number.toLocaleString('en-IN');
+    return n.toLocaleString();
   });
 
-  useEffect(() => {
-    spring.set(Number(value) || 0);
-  }, [spring, value]);
+  useEffect(() => { spring.set(Number(value) || 0); }, [spring, value]);
 
   return <motion.span>{display}</motion.span>;
 }
 
-export default function StatCard({
-  title,
-  value = 0,
-  icon: Icon,
-  change,
-  color = 'blue',
-  format = 'number'
-}) {
-  const colorMap = {
-    blue: {
-      bg: 'bg-blue-50',
-      icon: 'text-sf-blue',
-      border: 'border-blue-100'
-    },
-    green: {
-      bg: 'bg-green-50',
-      icon: 'text-green-600',
-      border: 'border-green-100'
-    },
-    purple: {
-      bg: 'bg-purple-50',
-      icon: 'text-purple-600',
-      border: 'border-purple-100'
-    },
-    orange: {
-      bg: 'bg-orange-50',
-      icon: 'text-orange-600',
-      border: 'border-orange-100'
-    },
-    indigo: {
-      bg: 'bg-indigo-50',
-      icon: 'text-indigo-600',
-      border: 'border-indigo-100'
-    }
-  };
+const COLOR_MAP = {
+  blue:   { bg: 'bg-blue-50',   icon: 'text-brand-blue',   ring: 'ring-blue-100' },
+  green:  { bg: 'bg-green-50',  icon: 'text-green-600',    ring: 'ring-green-100' },
+  purple: { bg: 'bg-purple-50', icon: 'text-purple-600',   ring: 'ring-purple-100' },
+  orange: { bg: 'bg-orange-50', icon: 'text-orange-600',   ring: 'ring-orange-100' },
+  indigo: { bg: 'bg-indigo-50', icon: 'text-indigo-600',   ring: 'ring-indigo-100' },
+};
 
-  const selectedColor = colorMap[color] || colorMap.blue;
-
-  const isPositive = change > 0;
-  const isNeutral = change === 0 || change == null;
+export default function StatCard({ title, value = 0, icon: Icon, color = 'blue', format = 'number' }) {
+  const c = COLOR_MAP[color] || COLOR_MAP.blue;
 
   return (
     <motion.div
-      whileHover={{
-        y: -3,
-        boxShadow: '0 10px 30px rgba(3, 45, 96, 0.08)'
-      }}
-      transition={{ duration: 0.2 }}
-      className="bg-white rounded-2xl border border-brand-border shadow-sm p-6"
+      whileHover={{ y: -3, boxShadow: '0 12px 32px rgba(3,45,96,0.12)' }}
+      transition={{ duration: 0.18 }}
+      className="bg-white rounded-2xl border border-brand-border p-6 relative overflow-hidden"
+      style={{ boxShadow: '0 1px 3px rgba(3,45,96,0.06), 0 4px 12px rgba(3,45,96,0.04)' }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-medium text-brand-secondary">
-          {title}
-        </p>
+      {/* Subtle top gradient accent */}
+      <div
+        className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl opacity-60"
+        style={{ background: 'linear-gradient(90deg, #0176D3, #1B96FF)' }}
+      />
 
+      <div className="flex items-start justify-between mb-4">
+        <p className="text-sm font-medium text-brand-secondary leading-tight">{title}</p>
         {Icon && (
-          <div
-            className={`w-10 h-10 rounded-xl ${selectedColor.bg} ${selectedColor.border} border flex items-center justify-center`}
-          >
-            <Icon
-              size={20}
-              className={selectedColor.icon}
-            />
+          <div className={`icon-circle ${c.bg} ring-1 ${c.ring}`}>
+            <Icon size={18} className={c.icon} />
           </div>
         )}
       </div>
 
-      <div className="text-2xl xl:text-3xl font-bold text-brand-text mb-2">
-        <AnimatedNumber
-          value={value}
-          format={format}
-        />
+      <div className="text-3xl font-bold text-brand-text tracking-tight">
+        <AnimatedNumber value={value} format={format} />
       </div>
-
-      {change != null && (
-        <div
-          className={`flex items-center gap-1 text-xs font-medium ${
-            isNeutral
-              ? 'text-gray-400'
-              : isPositive
-                ? 'text-green-600'
-                : 'text-red-500'
-          }`}
-        >
-          {isNeutral ? (
-            <Minus size={12} />
-          ) : isPositive ? (
-            <TrendingUp size={12} />
-          ) : (
-            <TrendingDown size={12} />
-          )}
-
-          <span>
-            {isNeutral
-              ? 'No change'
-              : `${Math.abs(change)}% from last month`}
-          </span>
-        </div>
-      )}
     </motion.div>
   );
 }
