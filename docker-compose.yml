@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: leadflow-backend
+    env_file: ./backend/.env
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    networks:
+      - leadflow-net
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: leadflow-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - leadflow-net
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: leadflow-mongodb
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - leadflow-net
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+
+networks:
+  leadflow-net:
+    driver: bridge
