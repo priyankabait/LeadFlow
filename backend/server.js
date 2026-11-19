@@ -16,6 +16,10 @@ const app = express();
 
 app.set('trust proxy', 1);
 
+if (!process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET is missing');
+}
+
 app.use(helmet());
 app.use(morgan('dev'));
 
@@ -54,23 +58,19 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 
 app.use(require('./middleware/errorHandler'));
 
-const PORT = process.env.PORT || 5000;
+module.exports = app;
 
-const startServer = async () => {
-  try {
-    await connectDB();
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
 
-    if (!process.env.SESSION_SECRET) {
-      throw new Error('SESSION_SECRET is missing from environment variables');
-    }
-
-    app.listen(PORT, () => {
-      console.log(`LeadFlow Backend running on port ${PORT}`);
+  connectDB()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`LeadFlow Backend running on port ${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error('Failed to start LeadFlow:', error.message);
+      process.exit(1);
     });
-  } catch (error) {
-    console.error('Failed to start LeadFlow:', error.message);
-    process.exit(1);
-  }
-};
-
-startServer();
+}
