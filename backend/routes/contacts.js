@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
+const requireUserAuth = require('../middleware/requireUserAuth');
 const {
   getContacts,
   getContactById,
@@ -11,7 +11,7 @@ const {
   deleteContact,
 } = require('../controllers/contactController');
 
-router.use(authMiddleware);
+router.use(requireUserAuth);
 
 router.get('/', getContacts);
 router.get('/:id', getContactById);

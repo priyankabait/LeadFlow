@@ -1,44 +1,77 @@
+
 'use strict';
 
 const { soqlQuery, makeRequest } = require('./salesforceService');
 
-const buildAccountWhere = ({ search, industry }) => {
+const buildContactWhere = ({ search, accountId }) => {
   const conditions = ['IsDeleted=false'];
 
   if (search) {
     const s = search.replace(/'/g, "\\'");
-    conditions.push(`Name LIKE '%${s}%'`);
+    conditions.push(
+      `(FirstName LIKE '%${s}%' OR LastName LIKE '%${s}%' OR Email LIKE '%${s}%')`
+    );
   }
 
-  if (industry) {
-    conditions.push(`Industry='${industry.replace(/'/g, "\\'")}'`);
+  if (accountId) {
+    const safeAccountId = accountId.replace(/'/g, "\\'");
+    conditions.push(`AccountId='${safeAccountId}'`);
   }
 
   return conditions.join(' AND ');
 };
 
-const getAccounts = async ({ search, industry, limit = 50, offset = 0 } = {}) => {
-  const where = buildAccountWhere({ search, industry });
-  const query = `SELECT Id,Name,Industry,Phone,Website,BillingCity,BillingCountry,Type,AnnualRevenue,NumberOfEmployees,CreatedDate FROM Account WHERE ${where} ORDER BY CreatedDate DESC LIMIT ${limit} OFFSET ${offset}`;
-  return soqlQuery(query);
+const getContacts = async (
+  userId,
+  { search, accountId, limit = 50, offset = 0 } = {}
+) => {
+  const where = buildContactWhere({ search, accountId });
+
+  const query = `SELECT Id,FirstName,LastName,Email,Phone,AccountId,Account.Name,Title,Department,CreatedDate FROM Contact WHERE ${where} ORDER BY CreatedDate DESC LIMIT ${limit} OFFSET ${offset}`;
+
+  return soqlQuery(userId, query);
 };
 
-const getAccountById = async (id) => {
-  const query = `SELECT Id,Name,Industry,Phone,Website,BillingCity,BillingCountry,Type,AnnualRevenue,NumberOfEmployees,Description,CreatedDate FROM Account WHERE Id='${id}'`;
-  const result = await soqlQuery(query);
-  return result.records && result.records[0] ? result.records[0] : null;
+const getContactById = async (userId, id) => {
+  const query = `SELECT Id,FirstName,LastName,Email,Phone,AccountId,Account.Name,Title,Department,Description,CreatedDate FROM Contact WHERE Id='${id}'`;
+
+  const result = await soqlQuery(userId, query);
+
+  return result.records && result.records[0]
+    ? result.records[0]
+    : null;
 };
 
-const createAccount = async (data) => {
-  return makeRequest('POST', '/services/data/v59.0/sobjects/Account/', data);
+const createContact = async (userId, data) => {
+  return makeRequest(
+    userId,
+    'POST',
+    '/services/data/v59.0/sobjects/Contact/',
+    data
+  );
 };
 
-const updateAccount = async (id, data) => {
-  return makeRequest('PATCH', `/services/data/v59.0/sobjects/Account/${id}`, data);
+const updateContact = async (userId, id, data) => {
+  return makeRequest(
+    userId,
+    'PATCH',
+    `/services/data/v59.0/sobjects/Contact/${id}`,
+    data
+  );
 };
 
-const deleteAccount = async (id) => {
-  return makeRequest('DELETE', `/services/data/v59.0/sobjects/Account/${id}`);
+const deleteContact = async (userId, id) => {
+  return makeRequest(
+    userId,
+    'DELETE',
+    `/services/data/v59.0/sobjects/Contact/${id}`
+  );
 };
 
-module.exports = { getAccounts, getAccountById, createAccount, updateAccount, deleteAccount };
+module.exports = {
+  getContacts,
+  getContactById,
+  createContact,
+  updateContact,
+  deleteContact
+};

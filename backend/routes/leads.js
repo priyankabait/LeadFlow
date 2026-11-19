@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
+const requireUserAuth = require('../middleware/requireUserAuth');
 const {
   getLeads,
   getLeadById,
@@ -11,7 +11,7 @@ const {
   deleteLead,
 } = require('../controllers/leadController');
 
-router.use(authMiddleware);
+router.use(requireUserAuth);
 
 router.get('/', getLeads);
 router.get('/:id', getLeadById);

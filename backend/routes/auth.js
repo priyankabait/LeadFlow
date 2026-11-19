@@ -4,6 +4,8 @@
 const express = require('express');
 const router = express.Router();
 
+const requireUserAuth = require('../middleware/requireUserAuth');
+
 const {
   initOAuth,
   oauthCallback,
@@ -11,16 +13,14 @@ const {
   disconnect
 } = require('../controllers/authController');
 
-// Start Salesforce OAuth
-router.get('/salesforce', initOAuth);
+// LeadFlow login is required to start OAuth
+router.get('/salesforce', requireUserAuth, initOAuth);
 
-// Handle Salesforce OAuth callback
+// Callback validates the original authenticated session and OAuth state
 router.get('/salesforce/callback', oauthCallback);
 
-// Check connection status
-router.get('/status', getStatus);
-
-// Disconnect Salesforce
-router.post('/disconnect', disconnect);
+// Only logged-in users can check or disconnect their own connection
+router.get('/status', requireUserAuth, getStatus);
+router.post('/disconnect', requireUserAuth, disconnect);
 
 module.exports = router;

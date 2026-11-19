@@ -1,3 +1,4 @@
+
 'use strict';
 
 const { soqlQuery, makeRequest } = require('./salesforceService');
@@ -13,34 +14,64 @@ const buildContactWhere = ({ search, accountId }) => {
   }
 
   if (accountId) {
-    conditions.push(`AccountId='${accountId.replace(/'/g, "\\'")}'`);
+    const safeAccountId = accountId.replace(/'/g, "\\'");
+    conditions.push(`AccountId='${safeAccountId}'`);
   }
 
   return conditions.join(' AND ');
 };
 
-const getContacts = async ({ search, accountId, limit = 50, offset = 0 } = {}) => {
+const getContacts = async (
+  userId,
+  { search, accountId, limit = 50, offset = 0 } = {}
+) => {
   const where = buildContactWhere({ search, accountId });
+
   const query = `SELECT Id,FirstName,LastName,Email,Phone,AccountId,Account.Name,Title,Department,CreatedDate FROM Contact WHERE ${where} ORDER BY CreatedDate DESC LIMIT ${limit} OFFSET ${offset}`;
-  return soqlQuery(query);
+
+  return soqlQuery(userId, query);
 };
 
-const getContactById = async (id) => {
+const getContactById = async (userId, id) => {
   const query = `SELECT Id,FirstName,LastName,Email,Phone,AccountId,Account.Name,Title,Department,Description,CreatedDate FROM Contact WHERE Id='${id}'`;
-  const result = await soqlQuery(query);
-  return result.records && result.records[0] ? result.records[0] : null;
+
+  const result = await soqlQuery(userId, query);
+
+  return result.records && result.records[0]
+    ? result.records[0]
+    : null;
 };
 
-const createContact = async (data) => {
-  return makeRequest('POST', '/services/data/v59.0/sobjects/Contact/', data);
+const createContact = async (userId, data) => {
+  return makeRequest(
+    userId,
+    'POST',
+    '/services/data/v59.0/sobjects/Contact/',
+    data
+  );
 };
 
-const updateContact = async (id, data) => {
-  return makeRequest('PATCH', `/services/data/v59.0/sobjects/Contact/${id}`, data);
+const updateContact = async (userId, id, data) => {
+  return makeRequest(
+    userId,
+    'PATCH',
+    `/services/data/v59.0/sobjects/Contact/${id}`,
+    data
+  );
 };
 
-const deleteContact = async (id) => {
-  return makeRequest('DELETE', `/services/data/v59.0/sobjects/Contact/${id}`);
+const deleteContact = async (userId, id) => {
+  return makeRequest(
+    userId,
+    'DELETE',
+    `/services/data/v59.0/sobjects/Contact/${id}`
+  );
 };
 
-module.exports = { getContacts, getContactById, createContact, updateContact, deleteContact };
+module.exports = {
+  getContacts,
+  getContactById,
+  createContact,
+  updateContact,
+  deleteContact
+};

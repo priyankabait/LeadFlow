@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
+const requireUserAuth = require('../middleware/requireUserAuth');
 const {
   getAccounts,
   getAccountById,
@@ -11,7 +11,7 @@ const {
   deleteAccount,
 } = require('../controllers/accountController');
 
-router.use(authMiddleware);
+router.use(requireUserAuth);
 
 router.get('/', getAccounts);
 router.get('/:id', getAccountById);

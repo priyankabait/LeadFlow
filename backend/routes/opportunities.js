@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
+const requireUserAuth = require('../middleware/requireUserAuth');
 const {
   getOpportunities,
   getOpportunityById,
@@ -11,7 +11,7 @@ const {
   deleteOpportunity,
 } = require('../controllers/opportunityController');
 
-router.use(authMiddleware);
+router.use(requireUserAuth);
 
 router.get('/', getOpportunities);
 router.get('/:id', getOpportunityById);
